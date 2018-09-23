@@ -1,0 +1,69 @@
+---
+title: "Assignment 5"
+author: "Yuchen Shi"
+date: "4/13/2018"
+output: html_document
+---
+
+# Q#1
+According to the formula for F, we calculate our test statistic:
+```{r Question 1}
+((0.7-0.6)/2)/((1-0.7)/(1000-5-1))
+```
+
+Based on the F table, the F critical value with degrees of freedom 2 and 94 and alpha=0.05 is about 3. Since our test statistic is much larger than 3, we would reject the null hypothesis that victiim descent and gender has no explanatory effect on our regression. As a result, I would expect the R-squared value to drop, and the drop is statistically significant.
+
+# Q#2
+```{r Question 2}
+b  <- read.csv("~/Desktop/ITP 350/Cars93.txt", sep="")
+
+library(dplyr)
+library(rpart)
+rpart_model <- rpart(Price~Horsepower+Weight, data=b, method="anova")
+library(rpart.plot)
+rpart.plot(rpart_model)
+
+rpart_model2<-rpart(Price~., data=b, method="anova")
+rpart.plot(rpart_model2)
+```
+
+For a car that weighs 3000 pounds and has horsepower=150, I would predict the price to be 20.
+If all the other 19 variables are included, the predicted price would be 19 just based on weight and horsepower. However, it didn't change much. 
+
+# Q#3
+```{r Question 3}
+c<-b%>%select(Price, MPG.city, MPG.highway, EngineSize, Horsepower, RPM, Rev.per.mile, Fuel.tank.capacity, Length, Width)
+library(ggdendro)
+hc<-hclust(dist(c))
+ggdendrogram(hc)
+source("http://addictedtor.free.fr/packages/A2R/lastVersion/R/code.R")
+A2Rplot(hc, k = 4, boxes = FALSE, col.up = "gray50", col.down = c("#FF6B6B", "#4ECDC4", "#556270", "#5DB944"))
+
+```
+
+
+I choose to cluster the data into 4 groups. And by the algorithm of hierarchical clustering, I get two groups that have a lot of observations, and th other two that just have a few observations.
+
+# Q#4
+```{r Question 4}
+c<-na.omit(c)
+c<-scale(c)
+head(c)
+library(factoextra)
+distance<-get_dist(c)
+fviz_dist(distance, gradient=list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
+k2<-kmeans(c, centers=2, nstart=25)
+k3<-kmeans(c, centers=3, nstart=25)
+k4<-kmeans(c, centers=4, nstart=25)
+k5<-kmeans(c, centers=5, nstart=25)
+p2<-fviz_cluster(k2, geom="point", data = c)
+p3<-fviz_cluster(k3, geom="point", data = c)
+p4<-fviz_cluster(k4, geom="point", data = c)
+p5<-fviz_cluster(k5, geom="point", data = c)
+library(gridExtra)
+grid.arrange(p2, p3, p4, p5, nrow=2)
+fviz_nbclust(c, kmeans, method="wss")
+fviz_cluster(k4, data = c)
+```
+
+I draw the clusters of 2, 3, 4 and 5. And I plot the total sum of square against the number of clusters to determine the optimal number of clusters. Based on the graph, I would say 4 is the optimal number of clusters, so I draw the k-means clustering graph with 4 clusters again. Comparing it to the graph of the hierarchical clustering, I would say k-means clustering makes more sense, since it doesn't have any groups that are too small or too big.

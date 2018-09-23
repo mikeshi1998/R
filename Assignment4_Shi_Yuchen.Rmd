@@ -1,0 +1,111 @@
+---
+title: "Assignment 4"
+author: "Yuchen Shi"
+date: "3/22/2018"
+output: html_document
+---
+
+## Part I
+This is the Stage 1 part of the Kaggle Competition.
+
+
+```{r Stage 1}
+rm(list=ls())
+
+# Stage 1
+sss1<-read.csv("~/Desktop/ITP 350/SampleSubmissionStage1.csv")
+head(sss1)
+(n<-dim(sss1)[1])
+set.seed(202839)
+sss1$Pred<-runif(n, 1/3, 2/3)
+summary(sss1$Pred)
+write.csv(sss1, "submission.csv", row.names=F)
+```
+
+## Part II
+
+This is the visualization part of the assignment.
+I loaded the NCAA Tourney Detailed Results CSV file and the Team CSV file which has the data about team names and team ID. Using commands in dplyr, I summarize some important data about the Detailed Results file and join the two CSV files so I can link team names with the data. Now I have a clean data frame that I can use to do some analysis about the performance of the teams.
+
+```{r Clean Data Frame}
+library(dplyr)
+Teams<-read.csv("~/Desktop/ITP 350/DataFiles/Teams.csv")
+a<-read.csv("~/Desktop/ITP 350/DataFiles/NCAATourneyDetailedResults.csv")
+b<-inner_join(a, Teams, by=c("WTeamID"="TeamID"))%>%mutate(FieldGoalPercentage=WFGM/WFGA)%>%mutate(ThreePointersPercentage=WFGM3/WFGA3)%>%mutate(ScoreDifference=WScore-LScore)%>%group_by(TeamName)%>%summarize(AverageThreePointersMade=mean(WFGM3), AverageOffensiveRebounds=mean(WOR), AverageFieldGoalPercentage=mean(FieldGoalPercentage), AverageThreePointersPercentage=mean(ThreePointersPercentage))
+c<-inner_join(a, Teams, by=c("WTeamID"="TeamID"))%>%group_by(TeamName)%>%count()%>%rename(NumberOfWins=n)
+d<-inner_join(b, c, by="TeamName")%>%arrange(desc(NumberOfWins))
+head(d)
+```
+
+
+I use ggplot to draw a bar graph of the top 10 teams that have the highest number of wins in the history of the NCAA Tourney. I think it will be an important prediction of this year's competition.
+
+
+```{r Top 10 Teams}
+e<-d%>%head(10)
+library(ggplot2)
+ggplot(e, aes(TeamName, NumberOfWins))+geom_bar(aes(reorder(TeamName, NumberOfWins)), stat="identity")+xlab("Team Name")+ylab("Number of Wins")+ggtitle("Number of Wins for the Top 10 Teams in NCAA Tourney")+coord_flip()
+
+```
+
+
+From now on, I will focus on these 10 teams, and examine some important data about them to predict who is likely to do well in this year.
+
+Three pointer is an important thing to look at. As Stephen Curry lead the Golden State Warriors won the championship in 2015 and 2017, people become to pay more attention to three pointers. I graph the relationship between the average three pointers made and the total number of wins for all team. I would expect there is a positive relationship.
+
+
+```{r Three Pointers Made}
+ggplot(d, aes(AverageThreePointersMade, NumberOfWins))+geom_point()+geom_smooth(method="lm")+ggtitle("Relationship Between Average Three Pointers Made and the Number of Wins in NCAA Tourney")
+```
+
+
+Different from my expectation, the best fit linear regression line is almost a horizontal line; as a result, we cannot say the teams that made more three pointers are likely to win more games. On the other hand, it seems that teams with a lot of wins have 5-7 average three pointers per game. Too many three pointers may not be a good sign since it indicates the team focuses too much on three pointers and may miss some offense opportunities.
+
+Another important thing that I could think of is the Offensive Rebound. It is important because it gives the team a second round of opportunity to offend. I graph the relationship between the average offensive rebounds and the number of wins for all teams. 
+
+
+```{r Offensive Rebounds}
+ggplot(d, aes(AverageOffensiveRebounds, NumberOfWins))+geom_point()+geom_smooth(method="lm")+ggtitle("Relationship between Average Offensive Rebounds and the Number of Wins in NCAA Tourney")
+```
+
+
+This time, there seems to be a weak positive relationship between the two variables. So I would further explore the data about offensive rebounds for the top 10 teams that have the highest number of wins.
+
+
+```{r Offensive Rebounds Top 10 Teams}
+ggplot(e, aes(TeamName, AverageOffensiveRebounds))+geom_bar(aes(reorder(TeamName, -AverageOffensiveRebounds)), stat="identity")+xlab("Team Name")+ylab("Average Number of Offensive Rebounds")+ggtitle("Average Number of Offensive Rebounds for the Top 10 Teams in NCAA Tourney")
+```
+
+
+It seems like North Carolina, Kansas and Michigan State are very good at offensive rebounds.
+
+Instead of three pointers made, three pointers percentage might tell us more information about the team's efficiency in offense. Field goal percentage is also important, and they should be positively related.
+
+
+```{r Field goal percentage and three pointers percentage}
+ggplot(d, aes(AverageFieldGoalPercentage, AverageThreePointersPercentage))+geom_point()+geom_smooth(method="lm")+ggtitle("Relationship between Field Goal Percentage and Three Pointers Percentage for the Winning Teams")
+```
+
+
+I graph the bar plot for the average field goal percentage and three pointers percentage for the top 10 teams. 
+
+
+```{r Field goal percentage and three pointers percentage for top 10 teams}
+p1<-ggplot(e, aes(TeamName, AverageThreePointersPercentage))+geom_bar(aes(reorder(TeamName, -AverageThreePointersPercentage)), stat = "identity")+coord_flip()
+p2<-ggplot(e, aes(TeamName, AverageFieldGoalPercentage))+geom_bar(aes(reorder(TeamName, -AverageFieldGoalPercentage)), stat = "identity")+coord_flip()
+library(gridExtra)
+grid.arrange(p1, p2, ncol=1)
+```
+
+From the graph, it seems that Kansas, Louisville, Kentucky and North Carolina have high field goal percentage. Syracuse, Duke and Michigan State have high three pointers percentage.
+
+One final thing that I am interested in is the score difference between the winning team and the losing team. It shows the level of dominance and can somehow determine which team is super strong. As a result, I graphed the boxplot of the score differences for the top 10 teams in all the games they won.
+
+```{r Score Difference}
+f<-a%>%mutate(ScoreDifference=WScore-LScore)%>%inner_join(Teams, by=c("WTeamID"="TeamID"))%>%inner_join(e, by="TeamName")%>%select(TeamName, ScoreDifference)
+ggplot(f, aes(TeamName, ScoreDifference))+geom_boxplot()+ggtitle("Score Differences in All Games Won")
+```
+
+Florida, Duke, Kansas, Louisville, and North Carolina all show some dominance in the game they won, since their boxplots generally higher than those of other teams.
+
+Based on all the information, I wuold say Kansas and North Carolina are very likely to do well in this year's championship, since they are ranked the top on all the variables that I explored.
